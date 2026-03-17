@@ -807,6 +807,56 @@ def handle_slash(cmd: str) -> bool:
         HISTORY[:] = HISTORY[-10:]
         print(f"  Compacted {old_len} -> {len(HISTORY)} messages")
 
+    elif command == "/save":
+        if not arg:
+            print("  Usage: /save <name>")
+            return True
+        session_dir = os.path.expanduser("~/.trashclaw/sessions")
+        os.makedirs(session_dir, exist_ok=True)
+        safe_name = "".join(c for c in arg if c.isalnum() or c in "-_").strip()
+        if not safe_name:
+            print("  Error: invalid session name")
+            return True
+        filepath = os.path.join(session_dir, f"{safe_name}.json")
+        try:
+            with open(filepath, "w", encoding="utf-8") as f:
+                json.dump(HISTORY, f, ensure_ascii=False, indent=2)
+            print(f"  Saved {len(HISTORY)} messages to {filepath}")
+        except Exception as e:
+            print(f"  Error saving: {e}")
+
+    elif command == "/load":
+        if not arg:
+            print("  Usage: /load <name>")
+            return True
+        session_dir = os.path.expanduser("~/.trashclaw/sessions")
+        safe_name = "".join(c for c in arg if c.isalnum() or c in "-_").strip()
+        filepath = os.path.join(session_dir, f"{safe_name}.json")
+        if not os.path.isfile(filepath):
+            print(f"  Error: session '{safe_name}' not found")
+            return True
+        try:
+            with open(filepath, encoding="utf-8") as f:
+                loaded = json.load(f)
+            HISTORY.clear()
+            HISTORY.extend(loaded)
+            print(f"  Loaded {len(HISTORY)} messages from {filepath}")
+        except Exception as e:
+            print(f"  Error loading: {e}")
+
+    elif command == "/sessions":
+        session_dir = os.path.expanduser("~/.trashclaw/sessions")
+        if not os.path.isdir(session_dir):
+            print("  No saved sessions.")
+            return True
+        files = [f.replace(".json", "") for f in os.listdir(session_dir) if f.endswith(".json")]
+        if not files:
+            print("  No saved sessions.")
+        else:
+            print("  Saved sessions:")
+            for name in sorted(files):
+                print(f"    - {name}")
+
     elif command == "/help":
         print("""
   \033[1mTrashClaw Agent Commands\033[0m
@@ -814,6 +864,9 @@ def handle_slash(cmd: str) -> bool:
   /cd <dir>      Change working directory
   /clear         Clear all conversation context
   /compact       Keep only last 10 messages (saves context)
+  /save <name>   Save conversation history to file
+  /load <name>   Load conversation history from file
+  /sessions      List saved session files
   /status        Show server, model, and context info
   /exit          Exit TrashClaw
   /help          Show this help
